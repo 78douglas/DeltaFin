@@ -71,6 +71,7 @@ export interface AppState {
   goals: SavingsGoal[];
   loading: boolean;
   error: string | null;
+  editMode: boolean;
 }
 
 export type TransactionType = 'credit' | 'debit';

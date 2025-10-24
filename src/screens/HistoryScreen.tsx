@@ -18,16 +18,22 @@ import {
   Gift,
   Zap,
   Shirt,
-  Package
+  Package,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useTransactions } from '../hooks/useTransactions';
 import { useCategories } from '../hooks/useCategories';
+import { useApp } from '../context/AppContext';
 import { Button, Input, Select, Card, CardHeader, CardTitle, CardContent, Badge, LoadingSpinner } from '../components/ui';
 import ExportModal from '../components/ExportModal';
 import { exportToCSV, exportToPDF, exportToXLS } from '../lib/exportUtils';
 import { TransactionType } from '../types';
 import { formatToBrazilian, brazilianToISO, isValidBrazilianDate } from '../lib/utils';
+import EditTransactionModal from '../components/EditTransactionModal';
+import DeleteTransactionModal from '../components/DeleteTransactionModal';
+import { Transaction } from '../types';
 
 // Cores para o gráfico de pizza
 const COLORS = [
@@ -73,6 +79,7 @@ const HistoryScreen = () => {
     loadTransactions
   } = useTransactions();
   const { categories, getCategoryByName } = useCategories();
+  const { state: { editMode } } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<TransactionType | 'all'>('all');
@@ -85,6 +92,9 @@ const HistoryScreen = () => {
   const [predefinedPeriod, setPredefinedPeriod] = useState('all-time');
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   // Recarregar transações quando a tela for acessada
   useEffect(() => {
@@ -224,6 +234,26 @@ const HistoryScreen = () => {
       month: '2-digit',
       year: 'numeric'
     });
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteTransaction = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setSelectedTransaction(null);
   };
 
   const formatDateHeader = (monthKey: string) => {
@@ -594,14 +624,42 @@ const HistoryScreen = () => {
                               </div>
                             </div>
                             
-                            <div className="text-right">
-                              <span className={`text-lg font-bold ${
-                                transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
-                              </span>
-                              <div className="text-sm text-gray-500 mt-1">
-                                {formatTransactionDate(transaction.date)}
+                            <div className="flex items-center space-x-3">
+                              {/* Botões de Editar/Excluir - Apenas quando editMode está ativo */}
+                              {editMode && (
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditTransaction(transaction);
+                                    }}
+                                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                    title="Editar transação"
+                                  >
+                                    <Edit size={16} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteTransaction(transaction);
+                                    }}
+                                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                    title="Excluir transação"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              )}
+                              
+                              <div className="text-right">
+                                <span className={`text-lg font-bold ${
+                                  transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
+                                </span>
+                                <div className="text-sm text-gray-500 mt-1">
+                                  {formatTransactionDate(transaction.date)}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -710,6 +768,24 @@ const HistoryScreen = () => {
         onExport={handleExport}
         isExporting={isExporting}
       />
+
+      {/* Modal de Edição de Transação */}
+      {showEditModal && selectedTransaction && (
+        <EditTransactionModal
+          transaction={selectedTransaction}
+          isOpen={showEditModal}
+          onClose={handleCloseEditModal}
+        />
+      )}
+
+      {/* Modal de Exclusão de Transação */}
+      {showDeleteModal && selectedTransaction && (
+        <DeleteTransactionModal
+          transaction={selectedTransaction}
+          isOpen={showDeleteModal}
+          onClose={handleCloseDeleteModal}
+        />
+      )}
     </div>
   );
 };

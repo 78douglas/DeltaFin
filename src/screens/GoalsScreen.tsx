@@ -34,6 +34,7 @@ const GoalsScreen = () => {
     goals, 
     createGoal, 
     updateGoal,
+    deleteGoal,
     addContribution,
     getGoalProgress,
     getGoalsByStatus,
@@ -49,7 +50,9 @@ const GoalsScreen = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showContributionModal, setShowContributionModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [goalToDelete, setGoalToDelete] = useState<any>(null);
 
   const [newGoal, setNewGoal] = useState({
     name: '',
@@ -218,10 +221,23 @@ const GoalsScreen = () => {
 
   const handleDelete = (goalId: string) => {
     const goal = goals.find(g => g.id === goalId);
-    if (goal && window.confirm(`Tem certeza que deseja excluir a meta "${goal.name}"?`)) {
-      // TODO: Implementar exclusão de meta
-      console.log('Excluir meta:', goalId);
-      success('Funcionalidade em desenvolvimento', 'A exclusão de metas será implementada em breve');
+    if (goal) {
+      setGoalToDelete(goal);
+      setShowDeleteModal(true);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!goalToDelete) return;
+
+    try {
+      await deleteGoal(goalToDelete.id);
+      success('Meta excluída!', `Meta "${goalToDelete.name}" foi excluída com sucesso`);
+      setShowDeleteModal(false);
+      setGoalToDelete(null);
+    } catch (err) {
+      console.error('Erro ao excluir meta:', err);
+      error('Erro ao excluir meta', 'Tente novamente em alguns instantes');
     }
   };
 
@@ -742,6 +758,68 @@ const GoalsScreen = () => {
           </Button>
           <Button onClick={handleAddContribution} loading={loading}>
             Adicionar Contribuição
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Modal Confirmar Exclusão */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setGoalToDelete(null);
+        }}
+        title="Confirmar Exclusão"
+        size="sm"
+      >
+        <ModalBody>
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Excluir Meta
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Tem certeza que deseja excluir a meta{' '}
+              <span className="font-medium text-gray-900">
+                "{goalToDelete?.name}"
+              </span>
+              ?
+            </p>
+            {goalToDelete?.current_amount > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Atenção:</strong> Esta meta possui{' '}
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(goalToDelete.current_amount)}{' '}
+                  economizados. Ao excluir, estes dados serão perdidos permanentemente.
+                </p>
+              </div>
+            )}
+            <p className="text-xs text-gray-400">
+              Esta ação não pode ser desfeita.
+            </p>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setShowDeleteModal(false);
+              setGoalToDelete(null);
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={confirmDelete}
+            loading={loading}
+          >
+            Excluir Meta
           </Button>
         </ModalFooter>
       </Modal>

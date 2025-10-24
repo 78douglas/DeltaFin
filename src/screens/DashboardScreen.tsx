@@ -25,7 +25,9 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  HelpCircle
+  HelpCircle,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,6 +40,9 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import PieChart from '../components/charts/PieChart';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatToBrazilian } from '../lib/utils';
+import EditTransactionModal from '../components/EditTransactionModal';
+import DeleteTransactionModal from '../components/DeleteTransactionModal';
+import { Transaction } from '../types';
 
 const DashboardScreen = () => {
   const navigate = useNavigate();
@@ -45,7 +50,7 @@ const DashboardScreen = () => {
   const { 
     getMonthlyStats, 
     getCategoryExpenses, 
-    state: { loading, transactions }
+    state: { loading, transactions, editMode }
   } = useApp();
   const { getCategoryByName } = useCategories();
   const { getTotalBalance } = useTransactions();
@@ -54,6 +59,9 @@ const DashboardScreen = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   
   // Estado para controlar o mês selecionado
   const currentDate = new Date();
@@ -136,6 +144,26 @@ const DashboardScreen = () => {
       month: '2-digit',
       year: 'numeric'
     });
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteTransaction = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setSelectedTransaction(null);
   };
 
   const groupedRecentTransactions = groupTransactionsByDate(recentTransactions);
@@ -584,14 +612,42 @@ const DashboardScreen = () => {
                             </div>
                           </div>
                           
-                          <div className="text-right flex-shrink-0 ml-4">
-                            <span className={`font-bold text-xl ${
-                              isCredit ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              {isCredit ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
-                            </span>
-                            <div className="text-sm text-gray-500 mt-1">
-                              {formatTransactionDate(transaction.date)}
+                          <div className="flex items-center space-x-3">
+                            {/* Botões de Editar/Excluir - Apenas quando editMode está ativo */}
+                            {editMode && (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditTransaction(transaction);
+                                  }}
+                                  className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                  title="Editar transação"
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteTransaction(transaction);
+                                  }}
+                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Excluir transação"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            )}
+                            
+                            <div className="text-right flex-shrink-0">
+                              <span className={`font-bold text-xl ${
+                                isCredit ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {isCredit ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
+                              </span>
+                              <div className="text-sm text-gray-500 mt-1">
+                                {formatTransactionDate(transaction.date)}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -648,6 +704,24 @@ const DashboardScreen = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Edição de Transação */}
+      {showEditModal && selectedTransaction && (
+        <EditTransactionModal
+          transaction={selectedTransaction}
+          isOpen={showEditModal}
+          onClose={handleCloseEditModal}
+        />
+      )}
+
+      {/* Modal de Exclusão de Transação */}
+      {showDeleteModal && selectedTransaction && (
+        <DeleteTransactionModal
+          transaction={selectedTransaction}
+          isOpen={showDeleteModal}
+          onClose={handleCloseDeleteModal}
+        />
       )}
     </div>
   );

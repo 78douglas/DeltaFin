@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
 import { Category, Transaction, SavingsGoal, AppState } from '../types';
 import { supabase } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 // Actions
 type AppAction =
@@ -18,7 +19,8 @@ type AppAction =
   | { type: 'ADD_GOAL'; payload: SavingsGoal }
   | { type: 'UPDATE_GOAL'; payload: SavingsGoal }
   | { type: 'DELETE_GOAL'; payload: string }
-  | { type: 'SET_CURRENT_MONTH'; payload: Date };
+  | { type: 'SET_CURRENT_MONTH'; payload: Date }
+  | { type: 'SET_EDIT_MODE'; payload: boolean };
 
 // Initial State
 const initialState: AppState = {
@@ -28,6 +30,7 @@ const initialState: AppState = {
   currentMonth: new Date(),
   loading: false,
   error: null,
+  editMode: localStorage.getItem('editMode') === 'true' || false,
 };
 
 // Reducer
@@ -102,6 +105,10 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case 'SET_CURRENT_MONTH':
       return { ...state, currentMonth: action.payload };
     
+    case 'SET_EDIT_MODE':
+      localStorage.setItem('editMode', action.payload.toString());
+      return { ...state, editMode: action.payload };
+    
     default:
       return state;
   }
@@ -128,6 +135,7 @@ interface AppContextType {
   deleteGoal: (id: string) => Promise<void>;
   // Utility functions
   setCurrentMonth: (month: Date) => void;
+  setEditMode: (enabled: boolean) => void;
   getMonthlyStats: (month?: Date) => { income: number; expenses: number; balance: number };
   getCategoryExpenses: (month?: Date) => { name: string; value: number; color: string }[];
 }
@@ -141,9 +149,10 @@ interface AppProviderProps {
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const { user, loading: authLoading } = useAuth();
 
   // Category actions
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const { data, error } = await supabase
@@ -158,7 +167,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   const createCategory = async (category: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -215,7 +224,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   // Transaction actions
-  const loadTransactions = async (month?: Date) => {
+  const loadTransactions = useCallback(async (month?: Date) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       console.log('🔄 Carregando transações...');
@@ -251,7 +260,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   const createTransaction = async (transactionData: any) => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -317,7 +326,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   // Goal actions
-  const loadGoals = async () => {
+  const loadGoals = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const { data, error } = await supabase
@@ -332,7 +341,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   const createGoal = async (goal: Omit<SavingsGoal, 'id' | 'created_at' | 'updated_at' | 'current_amount'>) => {
     try {
@@ -391,6 +400,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   // Utility functions
   const setCurrentMonth = (month: Date) => {
     dispatch({ type: 'SET_CURRENT_MONTH', payload: month });
+  };
+
+  const setEditMode = (enabled: boolean) => {
+    dispatch({ type: 'SET_EDIT_MODE', payload: enabled });
   };
 
   const getMonthlyStats = (month?: Date) => {
@@ -470,13 +483,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     });
   };
 
-  // Load initial data
+  // Load initial data only when user is authenticated
   useEffect(() => {
-    console.log('🚀 AppProvider: Inicializando dados...');
-    loadCategories();
-    loadTransactions();
-    loadGoals();
-  }, []);
+    if (user && !authLoading) {
+      console.log('🚀 AppProvider: Usuário autenticado, carregando dados...');
+      loadCategories();
+      loadTransactions();
+      loadGoals();
+    } else if (!authLoading && !user) {
+      console.log('🔒 AppProvider: Usuário não autenticado, limpando dados...');
+      // Clear data when user is not authenticated
+      dispatch({ type: 'SET_CATEGORIES', payload: [] });
+      dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
+      dispatch({ type: 'SET_GOALS', payload: [] });
+    }
+  }, [user, authLoading, loadCategories, loadTransactions, loadGoals]);
 
 
 
@@ -496,6 +517,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     updateGoal,
     deleteGoal,
     setCurrentMonth,
+    setEditMode,
     getMonthlyStats,
     getCategoryExpenses,
   };
