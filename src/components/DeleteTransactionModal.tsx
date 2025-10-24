@@ -23,7 +23,7 @@ const DeleteTransactionModal: React.FC<DeleteTransactionModalProps> = ({
   transaction
 }) => {
   const { deleteTransaction } = useApp();
-  const { showToast } = useToast();
+  const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
 
   const handleDelete = async () => {
@@ -33,11 +33,11 @@ const DeleteTransactionModal: React.FC<DeleteTransactionModalProps> = ({
     
     try {
       await deleteTransaction(transaction.id);
-      showToast('Transação excluída com sucesso!', 'success');
+      success('Transação excluída com sucesso!');
       onClose();
-    } catch (error) {
-      console.error('Erro ao excluir transação:', error);
-      showToast('Erro ao excluir transação', 'error');
+    } catch (err) {
+      console.error('Erro ao excluir transação:', err);
+      error('Erro ao excluir transação');
     } finally {
       setLoading(false);
     }

@@ -26,7 +26,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
 }) => {
   const { categories } = useCategories();
   const { updateTransaction } = useApp();
-  const { showToast } = useToast();
+  const { success, error } = useToast();
 
   const [formData, setFormData] = useState({
     amount: '',
@@ -62,7 +62,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       const amount = parseFloat(formData.amount);
       
       if (isNaN(amount) || amount <= 0) {
-        showToast('Por favor, insira um valor válido', 'error');
+        error('Por favor, insira um valor válido');
         return;
       }
 
@@ -74,11 +74,11 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
         date: formData.date
       });
 
-      showToast('Transação atualizada com sucesso!', 'success');
+      success('Transação atualizada com sucesso!');
       onClose();
-    } catch (error) {
-      console.error('Erro ao atualizar transação:', error);
-      showToast('Erro ao atualizar transação', 'error');
+    } catch (err) {
+      console.error('Erro ao atualizar transação:', err);
+      error('Erro ao atualizar transação');
     } finally {
       setLoading(false);
     }
@@ -118,7 +118,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
             <Select
               label="Tipo"
               value={formData.type}
-              onChange={(value) => setFormData(prev => ({ ...prev, type: value as 'credit' | 'debit' }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'credit' | 'debit' }))}
               options={typeOptions}
               required
             />
@@ -139,7 +139,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
             <Select
               label="Categoria"
               value={formData.category_name}
-              onChange={(value) => setFormData(prev => ({ ...prev, category_name: value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, category_name: e.target.value }))}
               options={categoryOptions}
               placeholder="Selecione uma categoria"
               required
